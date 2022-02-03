@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: {{ .Values.env }}-{{ .Values.job.name }}
+spec:
+  schedule: {{ .Values.job.schedule | quote }}
+  concurrencyPolicy: {{ .Values.job.concurrencyPolicy }}
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 0
+  suspend: {{ .Values.job.suspend }}
+  workflowSpec:
+    entrypoint: execute-job
+    onExit: send-noti
+    templates:
+    - name: execute-job
+      steps:
+        - - name: start-job
+            templateRef:
+              name: job-curl-template
+              template: job
+      {{- with .Values.retryStrategy }}
+      retryStrategy:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    - name: send-noti
+      steps:
+        - - name: noti
+            templateRef:
+              name: check-job-status
+              template: send-error-to-slack
+            arguments:
+              parameters:
+              - name: secret
+                value: "{{ .Values.job.name }}-secret"
+    {{- with .Values.nodeSelector }}
+    nodeSelector:
+      {{- toYaml . | nindent 8 }}
+    {{- end }}
+    volumes:
+    - name: script
+      configMap:
+        name: {{ .Values.job.name }}

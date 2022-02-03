@@ -1,0 +1,24 @@
+env: "test"
+
+job:
+  name: curl-cronjob
+  schedule: "0 0 * * *"
+  concurrencyPolicy: Forbid
+  suspend: false
+  script: |
+    #!/bin/sh
+    date
+    curl -sX POST http://<host>:<port>/<api_path> 2>&1
+
+slackWebhook: https://hooks.slack.com/services/TD.../B0.../...
+
+nodeSelector:
+  tier: job
+
+retryStrategy:
+  limit: 4
+  retryPolicy: "Always"
+  backoff:
+    duration: "1s"
+    factor: 2
+    maxDuration: "1m"
